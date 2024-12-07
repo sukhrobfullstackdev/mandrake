@@ -1,0 +1,19 @@
+name: Dev
+concurrency:
+  group: environments-${{ github.ref }}
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Reset dev branch from main
+        uses: magiclabs/action-reset-repo@master
+        with:
+          base_branch: main
+          reset_branch: dev
+          github_token: ${{ secrets.GITHUB_TOKEN }}

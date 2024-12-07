@@ -1,0 +1,33 @@
+import {
+  IcoEmailFill,
+  IcoFingerprintFill,
+  IcoMessageFill,
+  LogoAppleMono,
+  LogoBitBucket,
+  LogoDiscord,
+  LogoFacebook,
+  LogoGitHubMono,
+  LogoGitLab,
+  LogoGoogle,
+  LogoLinkedIn,
+  LogoMicrosoft,
+  LogoTwitch,
+  LogoTwitterMono,
+} from '@magiclabs/ui-components';
+
+export const LOGIN_FORM_ICONS = {
+  email: IcoEmailFill,
+  phone: IcoMessageFill,
+  webauthn: IcoFingerprintFill,
+  google: LogoGoogle,
+  facebook: LogoFacebook,
+  twitter: LogoTwitterMono,
+  apple: LogoAppleMono,
+  discord: LogoDiscord,
+  github: LogoGitHubMono,
+  linkedin: LogoLinkedIn,
+  bitbucket: LogoBitBucket,
+  twitch: LogoTwitch,
+  microsoft: LogoMicrosoft,
+  gitlab: LogoGitLab,
+};

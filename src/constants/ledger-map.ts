@@ -1,0 +1,23 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const ledgerMap: { [index: string]: any } = {
+  TezosBridge: () => import('@fortmatic/ledger-bridge-tezos'),
+  HarmonyBridge: () => import('@fortmatic/ledger-bridge-harmony'),
+  FlowBridge: () => import('@fortmatic/ledger-bridge-flow'),
+  IconBridge: () => import('@fortmatic/ledger-bridge-icon'),
+  ZilliqaBridge: () => import('@fortmatic/ledger-bridge-zilliqa'),
+  PolkadotBridge: () => import('@fortmatic/ledger-bridge-polkadot'),
+  SolanaBridge: () => import('@fortmatic/ledger-bridge-solana'),
+  AvaxBridge: () => import('@fortmatic/ledger-bridge-avalanche'),
+  AlgodBridge: () => import('@fortmatic/ledger-bridge-algorand'),
+  CosmosBridge: () => import('@fortmatic/ledger-bridge-cosmos'),
+  BitcoinBridge: () => import('@fortmatic/ledger-bridge-bitcoin'),
+  NearBridge: () => import('@fortmatic/ledger-bridge-near'),
+  ConfluxBridge: () => import('@fortmatic/ledger-bridge-conflux'),
+  TerraBridge: () => import('@fortmatic/ledger-bridge-terra'),
+  TaquitoBridge: () => import('@fortmatic/ledger-bridge-taquito'),
+  EdBridge: () => import('@fortmatic/ledger-bridge-ed'),
+  HederaBridge: () => import('@fortmatic/ledger-bridge-hedera'),
+  AptosBridge: () => import('@fortmatic/ledger-bridge-aptos'),
+  SuiBridge: () => import('@fortmatic/ledger-bridge-sui'),
+  KadenaBridge: () => import('@fortmatic/ledger-bridge-kadena'),
+};

@@ -1,0 +1,51 @@
+{
+  "compilerOptions": {
+    "target": "ES2018",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "sourceMap": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@app/*": ["./src/app/*"],
+      "@components/*": ["./src/components/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@http-services": ["./src/lib/http-services"],
+      "@mocks/*": ["./src/__mocks__/*"],
+      "@common/*": ["./src/lib/common/*"],
+      "@server-utils/*": ["./src/lib/server-utils/*"],
+      "@utils/*": ["./src/lib/utils/*"],
+      "@constants/*": ["./src/constants/*"],
+      "@custom-types/*": ["./src/types/*"],
+      "@message-channel/*": ["./src/lib/message-channel/*"],
+      "@services/*": ["./src/lib/services/*"],
+      "@styled/*": ["./styled-system/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "panda.config.ts",
+    "./src/**/*.ts",
+    "./src/**/*.tsx",
+    ".next/types/**/*.ts",
+    "declarations/*.ts",
+    "styled-system"
+  ],
+  "exclude": ["node_modules"]
+}

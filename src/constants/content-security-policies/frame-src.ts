@@ -1,0 +1,16 @@
+export const FRAME_SRC = [
+  "'self'",
+  'https://*.magic.link',
+  'https://vercel.live',
+  'https://www.google.com',
+  'https://*.google.com',
+  'https://*.paypal.com',
+  'https://www.sandbox.paypal.com',
+  'https://assets.braintreegateway.com',
+  `${process.env.HOSTNAME === 'localhost' ? 'http://localhost:3014' : ''}`,
+  'https://buy.onramper.com',
+  'https://onramper.tech',
+  'https://*.sardine.ai',
+  'https://*.sandbox.sardine.ai',
+  'https://chainweaver.kadena.io/',
+];

@@ -1,0 +1,9 @@
+export const REFRESH_TOKEN_COOKIE = '_aurt';
+export const CSRF_TOKEN_COOKIE = '_aucsrf';
+export const SEND_CONTEXT_COOKIE = '_sendc';
+export const OAUTH_MOBILE_BUNDLE_ID = '_bundleId';
+export const OAUTH_CLIENT_META_COOKIE = '_oaclientmeta';
+export const OAUTH_SERVER_META_COOKIE = '_oaservermeta';
+export const OAUTH_THEME_COOKIE = '_ct';
+export const OAUTH_LOGIN_FLOW_CONTEXT_COOKIE = '_lfc';
+export const OAUTH_MFA_FACTORS_REQUIRED_COOKIE = '_mfafr';

@@ -1,0 +1,245 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - main
+
+env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+  TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+  STAGEF_URL: ${{ vars.STAGEF_URL }}
+  NEXT_STAGEF_URL: ${{ vars.NEXT_STAGEF_URL }}
+  AUTH_RELAYER_STAGEF_URL: ${{ vars.AUTH_RELAYER_STAGEF_URL }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN}}
+  NODE_OPTIONS: --max_old_space_size=8192
+
+jobs:
+  reset-stagef-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reset stagef branch from main
+        uses: magiclabs/action-reset-repo@master
+        with:
+          base_branch: main
+          reset_branch: stagef
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-stagef:
+    runs-on: ubuntu-latest-16-cores
+    needs: reset-stagef-branch
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install & pnpm install --global @datadog/datadog-ci
+
+      - name: Vercel Pull
+        run: vercel pull --yes --environment=preview --git-branch=stagef --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel Remove Environment Variable
+        run: vercel env rm NEXT_PUBLIC_GIT_COMMIT_SHA preview --token=${{ secrets.VERCEL_TOKEN }} --yes
+
+      - name: Vercel Add Environment Variable
+        run: echo -n $GITHUB_SHA | vercel env add NEXT_PUBLIC_GIT_COMMIT_SHA preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel Pull
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel Build
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Upload .vercel/output source maps to Datadog
+        run: |
+          datadog-ci sourcemaps upload .vercel/output/static/_next/static/ \
+          --service=mandrake \
+          --release-version=$GITHUB_SHA \
+          --minified-path-prefix=/_next/static/ \
+          --repository-url=https://github.com/magiclabs/mandrake
+
+      - name: Delete vercel output source map
+        run: find .vercel/output -type f -name "*.map" -delete
+
+      - name: Delete next output source maps
+        run: find .next/static -type f -name "*.map" -delete
+
+      - name: Vercel Deploy
+        id: deploy_preview_step # id the step to use the output in downstream jobs
+        run: |
+          vercel deploy --prebuilt --token=$VERCEL_TOKEN > deployment.txt
+          echo "deploy_preview_url="$(echo "$(cat deployment.txt)")"" >> $GITHUB_OUTPUT
+
+      - name: Alias Staged Deploy to app.stagef.magiclabs.com Domain
+        run: vercel alias set ${{  steps.deploy_preview_step.outputs.deploy_preview_url }} $STAGEF_URL --scope=$TEAM_ID --token=$VERCEL_TOKEN
+
+      - name: Alias Staged Deploy to next-stage.magic.link Domain
+        run: vercel alias set ${{  steps.deploy_preview_step.outputs.deploy_preview_url }} $NEXT_STAGEF_URL --scope=$TEAM_ID --token=$VERCEL_TOKEN
+
+      - name: Alias Staged Deploy to auth.stagef.magic.link Domain
+        run: vercel alias set ${{  steps.deploy_preview_step.outputs.deploy_preview_url }} $AUTH_RELAYER_STAGEF_URL --scope=$TEAM_ID --token=$VERCEL_TOKEN
+
+  qa-wolf-start:
+    runs-on: ubuntu-latest
+    needs: deploy-to-stagef
+    outputs:
+      QA_WOLF_SUITE_ID: ${{ steps.qa-wolf-start.outputs.QA_WOLF_SUITE_ID }}
+      QA_WOLF_RELEVANT_RUN_ID: ${{ steps.qa-wolf-start.outputs.QA_WOLF_RELEVANT_RUN_ID }}
+    steps:
+      - name: Start QA Wolf Test Suite
+        id: qa-wolf-start
+        shell: bash
+        run: |
+          suite_id=$(curl --silent -H "Authorization: qawolf_7db811be69e249c89a01e62a2cc805c8" -H "Content-Type: application/json" https://app.qawolf.com/api/webhooks/deploy_success | jq ".results[0].created_suite_id")
+          sleep 30
+          response=$(curl --silent -H "Authorization: qawolf_7db811be69e249c89a01e62a2cc805c8" -H "Content-Type: application/json" https://app.qawolf.com/api/v0/ci-greenlight/$(echo "$suite_id" | tr -d '"'))
+          relevantRunId=$(jq -r '.relevantRunId' <<<"$response")
+          relevantRunUrl=$(jq -r '.relevantRunUrl' <<<"$response")
+          echo "View QA Wolf test suite at $(echo "$relevantRunUrl" | tr -d '"')" >> $GITHUB_STEP_SUMMARY
+          echo "QA_WOLF_SUITE_ID=${suite_id}" >> $GITHUB_OUTPUT
+          echo "QA_WOLF_RELEVANT_RUN_ID=${relevantRunId}" >> $GITHUB_OUTPUT
+
+  qa-wolf-greenlight:
+    runs-on: ubuntu-latest
+    needs: qa-wolf-start
+    steps:
+      - name: Wait for QA Wolf CI Greenlight
+        shell: bash
+        run: |
+          COUNTER=0
+          while true; do
+              response=$(curl --silent -H "Authorization: qawolf_7db811be69e249c89a01e62a2cc805c8" -H "Content-Type: application/json" https://app.qawolf.com/api/v0/ci-greenlight/${{ needs.qa-wolf-start.outputs.QA_WOLF_RELEVANT_RUN_ID }})
+              greenlight=$(jq -r '.greenlight' <<<"$response")
+              runStage=$(jq -r '.runStage' <<<"$response")
+              blockingBugsCount=$(jq -r '.blockingBugsCount' <<<"$response")
+
+              echo "Test suite status"
+              echo "greenlight: $greenlight"
+              echo "runStage: $runStage"
+              echo ""
+
+              if [ "$greenlight" = true ]; then
+                  echo "Tests done, ship code."
+                  break
+              elif [ "$runStage" = "canceled" ]; then
+                  echo "Tests canceled, exiting."
+                  exit 1
+                  break
+              elif [ "$runStage" = "completed" ]; then
+                  if [ "$blockingBugsCount" = "0" ]; then
+                      echo "Tests complete, 0 blocking bugs, ship it."
+                      break
+                  else
+                      echo "Tests complete, $blockingBugsCount blocking bugs."
+                      exit 1
+                      break
+                  fi               
+              else
+                  if [ $COUNTER -ge 120 ]; then
+                      echo "Tests are taking too long, exiting."
+                      exit 1
+                      break
+                  fi
+                  if [ "$runStage" = "initializing" ] || [ "$runStage" = "underReview" ]; then
+                      echo "Tests are $runStage, poll again in 30 seconds."
+                      COUNTER=$((COUNTER +1))
+                      sleep 30
+                  else
+                      echo "Encountered an unexpected situation."
+                      exit 1
+                      break
+                  fi
+              fi
+          done
+
+  deploy-to-prod:
+    runs-on: ubuntu-latest-16-cores
+    needs: qa-wolf-greenlight
+    if: ${{ !cancelled() }}
+    environment: prod # creates gate for approval in GHA
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 9
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install & pnpm install --global @datadog/datadog-ci
+
+      - name: Vercel Pull
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel Remove Environment Variable
+        run: vercel env rm NEXT_PUBLIC_GIT_COMMIT_SHA production --token=${{ secrets.VERCEL_TOKEN }} --yes
+
+      - name: Vercel Add Environment Variable
+        run: echo -n $GITHUB_SHA | vercel env add NEXT_PUBLIC_GIT_COMMIT_SHA production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel Pull
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Vercel Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Upload .vercel/output source maps to Datadog
+        run: |
+          datadog-ci sourcemaps upload .vercel/output/static/_next/static/ \
+          --service=mandrake \
+          --release-version=$GITHUB_SHA \
+          --minified-path-prefix=/_next/static/ \
+          --repository-url=https://github.com/magiclabs/mandrake
+
+      - name: Delete vercel output source map
+        run: find .vercel/output -type f -name "*.map" -delete
+
+      - name: Delete next output source maps
+        run: find .next/static -type f -name "*.map" -delete
+
+      - name: Vercel Deploy
+        run: vercel deploy --yes --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

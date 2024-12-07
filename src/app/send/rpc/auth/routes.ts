@@ -1,0 +1,26 @@
+import { ValidRoutesConfig } from '@app/send/rpc/routes';
+
+export const authRoutes: ValidRoutesConfig = {
+  magic_auth_login_with_email_otp: { module: 'auth' },
+  magic_auth_login_with_magic_link: { module: 'auth' },
+  magic_auth_enable_mfa_flow: { module: 'auth' },
+  magic_auth_disable_mfa_flow: { module: 'auth' },
+  magic_auth_logout: { module: 'auth' },
+  magic_auth_is_logged_in: { module: 'auth', pathOverride: 'magic_is_logged_in' },
+  magic_is_logged_in: { module: 'auth' },
+  magic_auth_device_verification: { module: 'auth' },
+  magic_auth_get_id_token: { module: 'auth' },
+  magic_auth_generate_id_token: { module: 'auth' },
+  magic_auth_login_with_credential: { module: 'auth' },
+  magic_auth_login_with_oidc: { module: 'auth' },
+  magic_auth_login_with_sms: { module: 'auth' },
+  magic_auth_webauthn_registration_start: { module: 'auth' },
+  magic_auth_webauthn_register: { module: 'auth' },
+  magic_auth_register_webauthn_device_start: { module: 'auth' },
+  magic_auth_register_webauthn_device: { module: 'auth' },
+  magic_auth_login_with_web_authn: { module: 'auth' },
+  magic_auth_login_with_webauthn_verify: { module: 'auth' },
+  magic_auth_update_email: { module: 'auth' },
+  magic_auth_set_authorization_token: { module: 'auth' },
+  magic_auth_recover_account: { module: 'auth' },
+};
